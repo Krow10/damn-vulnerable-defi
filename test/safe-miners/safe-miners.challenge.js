@@ -23,7 +23,24 @@ describe('[Challenge] Safe Miners', function () {
     });
 
     it('Exploit', async function () {
-        /** CODE YOUR EXPLOIT HERE */
+        /** EXPLOIT
+            A bruteforce challenge not particularly insightful. I first started playing around with generating a Gnosis safe at the deposit address using 'createProxy'
+            but it didn't really payoff. I knew the challenge involved generating a contract at the deposit address to be able to take ownership of the tokens.
+
+            I didn't took too much time and effort to try and guess however. Guessing an EOA requires some knowledge of the private key (like the FuzzyIdentity chall from
+            Capture the Ether) and since there are many parameters influencing the creation of Gnosis safe, I thought it wasn't worth the time to try guess the answer.
+
+            Hence, I stumbled on a nice blog post by patrickd (https://ventral.digital/posts/2022/7/2/damn-vulnerable-defi-v2-13-junior-miners) stating the exact same things
+            that I concluded from this challenge (and the link to the recent Wintermute attack where the attacker deployed a Gnosis safe on an empty address).
+
+            His solution came accross a bit of luck with generating address through the 'create' OP call which uses an internal nonce to generate new addresses.
+            The 'deploy' on the JS side also comes in the calculation since it generates the address of the contract used for bruteforcing the deposit address.
+        */
+        this.timeout(0);
+        let attackerContractFactory = await ethers.getContractFactory('ThiefDeployer', attacker);
+        
+        this.attackerContract = await attackerContractFactory.deploy(this.token.address, attacker.address, 1); // Blank, the address of this contract will not give the solution
+        this.attackerContract = await attackerContractFactory.deploy(this.token.address, attacker.address, 66); // After 65 tries, the correct deposit address will be generated
     });
 
     after(async function () {
