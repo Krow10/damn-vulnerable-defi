@@ -13,11 +13,11 @@ Also certain challs requires you to be familiar and learn about some widely used
 
 ## What ?
 
-Solutions are to be found in the *test* folder, inside the `Exploit` test function. Commits will track my progress, indicating which challs are currently solved inside that folder. 
+All solutions can be found in the *test* folder, inside the `Exploit` test function and in the *contracts/attacker-contracts* folder. Took me around 5 full days to solve them all and learned quite a lot during this time about Uniswap, Flash loans, Gnosis safes, etc.
 
 ## Next ?
 
-Start reading smart contracts audits and figure out the vulnerabilities by myself.
+Start reading smart contracts audits and figure out the vulnerabilities by myself. Get more familiar with hardhat and start to fork mainnet/testnet for replaying vulnerabilites.
 
 -----
 
